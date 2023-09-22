@@ -1,0 +1,9 @@
+dissect.esedb>=3.9dev1
+impacket==0.10.0
+pycryptodome>=3.17
+pycryptodomex>=3.17
+python_dateutil==2.8.2
+pyasn1-modules>=0.3.0
+six
+termcolor
+tqdm>=4.65
