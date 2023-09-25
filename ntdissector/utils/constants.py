@@ -29,7 +29,7 @@ SAM_ACCOUNT_TYPE = {
     "SAM_ACCOUNT_TYPE_MAX": 0x7FFFFFFF,
 }
 
-UUID_FIELDS = ["objectGUID", "currentValue"]
+UUID_FIELDS = ["objectGUID", "currentValue", "msFVE-RecoveryGuid", "msFVE-VolumeGuid"]
 
 DATETIME_FIELDS = ["dSCorePropagationData", "whenChanged", "whenCreated"]
 
