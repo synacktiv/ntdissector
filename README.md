@@ -74,17 +74,3 @@ Default directories:
 - Cache files : `~/.ntdissector/.cache/[hash]`
 - Output directory : `~/.ntdissector/out/[hash]/[object-class-name].json`
 
-## TO:DO
-- [ ] Fix Primary:Kerberos credentials
-- [ ] Create groups of filters 
-- [ ] microseconds in some timestamps are off by -1 / -2 (when compared to ldeep output)
-- [x] Dump relations from link_table
-  - [x] extract link_data
-  - [x] fix msDS-KeyCredentialLink-BL and msDS-KeyCredentialLink
-  - [x] map DN to resolve entries in showInAddressBook
-  - [x] check link_deltime to discard deleted links 
-- [x] Dump ACE from sd_table
-- [x] Test RC4 decryption
-- [x] LAPSv2 support
-- [ ] cap workers number to cpu_count
-- [ ] Handle keyboard interrupts properly 
