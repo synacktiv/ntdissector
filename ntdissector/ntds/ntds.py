@@ -25,9 +25,11 @@ import multiprocessing as mp
 from binascii import hexlify, unhexlify
 from base64 import b64encode
 from ntdissector.utils.crypto import PEK_LIST, format_asn1_to_pem
+from ntdissector.utils.sddl import parse_ntSecurityDescriptor
 from ntdissector.utils import NTDS_SID, GUID, fileTimeToDateTime, formatDateTime, json_dumps
 from ntdissector.utils.constants import (
     SAM_ACCOUNT_TYPE,
+    USER_ACCOUNT_CONTROL,
     UUID_FIELDS,
     DATETIME_FIELDS,
     FILETIME_FIELDS,
@@ -396,6 +398,15 @@ class NTDS:
                     res.append(t)
             obj["sAMAccountType"] = " | ".join(res) if as_string else res
 
+    def __formatUserAccountControl(self, obj: dict, as_string: bool = False) -> None:
+        res = list()
+        if "userAccountControl" in obj:
+            for t, v in USER_ACCOUNT_CONTROL.items():
+                if v & int(obj["userAccountControl"]):
+                    res.append(t)
+            obj["userAccountControl"] = " | ".join(res) if as_string else res
+
+
     def __formatObjectClass(self, obj: dict, as_string: bool = False) -> None:
         if "objectClass" in obj:
             res = list()
@@ -544,6 +555,14 @@ class NTDS:
             # redundant, unset attr this maybe?
             obj["msDS-KeyCredentialLink-BL"] = tmp
 
+    def __formatAllowedToActOnBehalfOfOtherIdentity(self, obj: dict) -> None:
+        if "msDS-AllowedToActOnBehalfOfOtherIdentity" in obj.keys():
+            sd = parse_ntSecurityDescriptor(bytes.fromhex(obj["msDS-AllowedToActOnBehalfOfOtherIdentity"]))
+            sids = list()
+            for ace in sd["DACL"]["ACEs"]:
+                sids.append(ace.get("SID", ""))
+            obj["msDS-AllowedToActOnBehalfOfOtherIdentity"] = sids
+
     def __formatCertificates(self, obj: dict) -> None:
         if "cACertificate" in obj:
             if isinstance(obj["cACertificate"], list):
@@ -582,11 +601,14 @@ class NTDS:
                     obj[f"{fn}_"] = f"!ERROR! {e}"
 
     def __formatSecurityDescriptor(self, obj: dict) -> None:
-        if "nTSecurityDescriptor" in obj:
-            obj["nTSecurityDescriptor"] = self.securityDescriptors.get(
-                str(int.from_bytes(bytes.fromhex(obj["nTSecurityDescriptor"]), byteorder="little")),
-                "!ERROR!",  # re-run with dryRun opt to rebuild cache
-            )
+        sd_fields = ["nTSecurityDescriptor", "msDS-AllowedToActOnBehalfOfOtherIdentity"]
+        for sdf in sd_fields:
+            if sdf in obj:
+                obj[sdf] = self.securityDescriptors.get(
+                    str(int.from_bytes(bytes.fromhex(obj[sdf]), byteorder="little")),
+                    "!ERROR!",  # re-run with dryRun opt to rebuild cache
+                )
+
 
     def __formatFields(self, obj: dict) -> None:
         self.__formatSID(obj)
@@ -594,6 +616,7 @@ class NTDS:
         self.__formatSupplementalCredentialsInfo(obj)
         self.__formatTimestamps(obj)
         self.__formatSamAccountType(obj, as_string=True)
+        self.__formatUserAccountControl(obj, as_string=True)
         self.__formatObjectClass(obj)
         self.__formatUID(obj)
         self.__formatLinks(obj)
@@ -604,6 +627,7 @@ class NTDS:
         self.__formatLAPS(obj)
         self.__formatLAPSv2(obj)
         self.__formatSecurityDescriptor(obj)
+        self.__formatAllowedToActOnBehalfOfOtherIdentity(obj)
 
     def __getObjectClass(self, record: Record) -> str or list:
         try:
