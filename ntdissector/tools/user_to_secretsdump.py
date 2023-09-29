@@ -22,8 +22,13 @@ def main():
                 else:
                     username = j.get("sAMAccountName")
                 if "cn" in j.keys() and "unicodePwd" in j.keys():
-                    print("%s:%s:%s:%s:::" % (username, rid, j.get("dBCSPwd", "aad3b435b51404eeaad3b435b51404ee"), j["unicodePwd"]))
-                
+                    if "pwdLastSet" in j.keys():
+                        if "ACCOUNTDISABLE" not in j['userAccountControl']:
+                            status = "Enabled"
+                        else:
+                            status = "Disabled"
+                        print("%s:%s:%s:%s::: (pwdLastSet=%s) (status=%s)" % (username, rid, j.get("dBCSPwd", "aad3b435b51404eeaad3b435b51404ee"), j["unicodePwd"], j['pwdLastSet'], status))
+
                 if "cn" in j.keys() and "ntPwdHistory" in j.keys():
                     i = 0
                     for h in j["ntPwdHistory"]:
