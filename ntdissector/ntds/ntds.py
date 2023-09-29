@@ -556,7 +556,10 @@ class NTDS:
 
     def __formatAllowedToActOnBehalfOfOtherIdentity(self, obj: dict) -> None:
         if "msDS-AllowedToActOnBehalfOfOtherIdentity" in obj.keys():
-            sd = parse_ntSecurityDescriptor(bytes.fromhex(obj["msDS-AllowedToActOnBehalfOfOtherIdentity"]))
+            if isinstance(obj["msDS-AllowedToActOnBehalfOfOtherIdentity"], str):
+                sd = parse_ntSecurityDescriptor(bytes.fromhex(obj["msDS-AllowedToActOnBehalfOfOtherIdentity"]))
+            elif isinstance(obj["msDS-AllowedToActOnBehalfOfOtherIdentity"], bytes):
+                sd = parse_ntSecurityDescriptor(obj["msDS-AllowedToActOnBehalfOfOtherIdentity"])
             sids = list()
             for ace in sd["DACL"]["ACEs"]:
                 sids.append(ace.get("SID", ""))
