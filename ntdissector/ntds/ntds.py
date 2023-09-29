@@ -255,8 +255,8 @@ class NTDS:
         for record in self.__sdtable.records():
             try:
                 self.securityDescriptors[str(record.get("sd_id"))] = record.get("sd_value")
-            except:
-                logging.error("Failed to parse SD of record %s" % repr(record))
+            except Exception as e:
+                logging.error("Failed to parse SD of record with sd_id=%s - %s" % (record.get("sd_id"), repr(e)))
 
         logging.debug("Parsing the link_table")
         for record in self.__linktable.records():
@@ -405,7 +405,6 @@ class NTDS:
                 if v & int(obj["userAccountControl"]):
                     res.append(t)
             obj["userAccountControl"] = " | ".join(res) if as_string else res
-
 
     def __formatObjectClass(self, obj: dict, as_string: bool = False) -> None:
         if "objectClass" in obj:
@@ -608,7 +607,6 @@ class NTDS:
                     str(int.from_bytes(bytes.fromhex(obj[sdf]), byteorder="little")),
                     "!ERROR!",  # re-run with dryRun opt to rebuild cache
                 )
-
 
     def __formatFields(self, obj: dict) -> None:
         self.__formatSID(obj)
