@@ -436,59 +436,72 @@ class NTDS:
         res = dict()
         if "supplementalCredentials" in obj:
             creds = self.pekList.decryptSecret(unhexlify(obj["supplementalCredentials"]), hasDES=False)
-            try:
-                uProperties = USER_PROPERTIES(creds)
-            except:
-                return
-            propertiesData = uProperties["UserProperties"]
-            for i in range(uProperties["PropertyCount"]):
+            if self.__isADAM:
+                # Undocumented structure for AD LDS: [Unknown - 0100000001000000e80100000600000001000000e0010000] + [Primary:WDigest - WDIGEST_CREDENTIALS]
+                res["Primary:WDigest"] = list()
                 try:
-                    uProperty = USER_PROPERTY(propertiesData)
+                    wDigestCreds = WDIGEST_CREDENTIALS(creds.split(unhexlify("0100000001000000e80100000600000001000000e0010000"))[1])
                 except:
-                    continue
-                # uProperty.dump()
-                propertiesData = propertiesData[len(uProperty) :]
+                    logging.error("__formatSupplementalCredentialsInfo (ADAM) : %s" % e)
+                    return
+                for j in range(wDigestCreds["NumberOfHashes"]):
+                    res["Primary:WDigest"].append(hexlify(wDigestCreds["Hash%d" % (j + 1)]).decode("utf-8"))
+            else:
                 try:
-                    pName = uProperty["PropertyName"].decode("utf-16-le")
-                except Exception as e:
-                    logging.error("__formatSupplementalCredentialsInfo : %s" % e)
-                    break
-                res[pName] = list()
-
-                if "Primary:Kerberos" in pName:
-                    if pName == "Primary:Kerberos-Newer-Keys":
-                        kerbCreds = (
-                            KERB_STORED_CREDENTIAL_NEW(unhexlify(uProperty["PropertyValue"]))
-                            if pName == "Primary:Kerberos-Newer-Keys"
-                            else KERB_STORED_CREDENTIAL(unhexlify(uProperty["PropertyValue"]))
-                        )
-                        kerbCredsData = kerbCreds["Buffer"]
-                        for j in range(kerbCreds["CredentialCount"]):
-                            kerbKeyData = KERB_KEY_DATA_NEW(kerbCredsData) if pName == "Primary:Kerberos-Newer-Keys" else KERB_KEY_DATA(kerbCredsData)
-                            kerbCredsData = kerbCredsData[len(kerbKeyData) :]
-                            keyValue = unhexlify(uProperty["PropertyValue"])[kerbKeyData["KeyOffset"] :][: kerbKeyData["KeyLength"]]
-                            res[pName].append(
-                                "%s:%s"
-                                % (
-                                    KERBEROS_TYPE[kerbKeyData["KeyType"]] if kerbKeyData["KeyType"] in KERBEROS_TYPE else kerbKeyData["KeyType"],
-                                    hexlify(keyValue).decode("utf-8"),
-                                )
-                            )
-
-                elif "Primary:CLEARTEXT" in pName:
+                    uProperties = USER_PROPERTIES(creds)
+                except:
+                    return
+                propertiesData = uProperties["UserProperties"]
+                for i in range(uProperties["PropertyCount"]):
                     try:
-                        res[pName].append(unhexlify(uProperty["PropertyValue"]).decode("utf-16-le"))
-                    except UnicodeDecodeError:
-                        res[pName].append(uProperty["PropertyValue"].decode("utf-8"))
-                elif "Primary:WDigest" in pName:
-                    wDigestCreds = WDIGEST_CREDENTIALS(unhexlify(uProperty["PropertyValue"]))
-                    # wDigestCreds.dump()
-                    for j in range(wDigestCreds["NumberOfHashes"]):
-                        res[pName].append(hexlify(wDigestCreds["Hash%d" % (j + 1)]).decode("utf-8"))
-                elif "Packages" in pName:
-                    res[pName] = unhexlify(uProperty["PropertyValue"]).decode("utf-16-le").split("\x00")
-                else:
-                    res[pName].append(hexlify(uProperty["PropertyValue"]).decode("utf-8"))
+                        uProperty = USER_PROPERTY(propertiesData)
+                    except:
+                        continue
+                    # uProperty.dump()
+                    propertiesData = propertiesData[len(uProperty) :]
+                    try:
+                        pName = uProperty["PropertyName"].decode("utf-16-le")
+                    except Exception as e:
+                        logging.error("__formatSupplementalCredentialsInfo : %s" % e)
+                        break
+                    res[pName] = list()
+
+                    if "Primary:Kerberos" in pName:
+                        if pName == "Primary:Kerberos-Newer-Keys":
+                            kerbCreds = (
+                                KERB_STORED_CREDENTIAL_NEW(unhexlify(uProperty["PropertyValue"]))
+                                if pName == "Primary:Kerberos-Newer-Keys"
+                                else KERB_STORED_CREDENTIAL(unhexlify(uProperty["PropertyValue"]))
+                            )
+                            kerbCredsData = kerbCreds["Buffer"]
+                            for j in range(kerbCreds["CredentialCount"]):
+                                kerbKeyData = (
+                                    KERB_KEY_DATA_NEW(kerbCredsData) if pName == "Primary:Kerberos-Newer-Keys" else KERB_KEY_DATA(kerbCredsData)
+                                )
+                                kerbCredsData = kerbCredsData[len(kerbKeyData) :]
+                                keyValue = unhexlify(uProperty["PropertyValue"])[kerbKeyData["KeyOffset"] :][: kerbKeyData["KeyLength"]]
+                                res[pName].append(
+                                    "%s:%s"
+                                    % (
+                                        KERBEROS_TYPE[kerbKeyData["KeyType"]] if kerbKeyData["KeyType"] in KERBEROS_TYPE else kerbKeyData["KeyType"],
+                                        hexlify(keyValue).decode("utf-8"),
+                                    )
+                                )
+
+                    elif "Primary:CLEARTEXT" in pName:
+                        try:
+                            res[pName].append(unhexlify(uProperty["PropertyValue"]).decode("utf-16-le"))
+                        except UnicodeDecodeError:
+                            res[pName].append(uProperty["PropertyValue"].decode("utf-8"))
+                    elif "Primary:WDigest" in pName:
+                        wDigestCreds = WDIGEST_CREDENTIALS(unhexlify(uProperty["PropertyValue"]))
+                        # wDigestCreds.dump()
+                        for j in range(wDigestCreds["NumberOfHashes"]):
+                            res[pName].append(hexlify(wDigestCreds["Hash%d" % (j + 1)]).decode("utf-8"))
+                    elif "Packages" in pName:
+                        res[pName] = unhexlify(uProperty["PropertyValue"]).decode("utf-16-le").split("\x00")
+                    else:
+                        res[pName].append(hexlify(uProperty["PropertyValue"]).decode("utf-8"))
 
         if len(res):
             obj["supplementalCredentials"] = res

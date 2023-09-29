@@ -55,7 +55,7 @@ USER_ACCOUNT_CONTROL = {
     "PARTIAL_SECRETS_ACCOUNT": 0x04000000,
 }
 
-UUID_FIELDS = ["objectGUID", "currentValue", "msFVE-RecoveryGuid", "msFVE-VolumeGuid"]
+UUID_FIELDS = ["objectGUID", "currentValue", "msFVE-RecoveryGuid", "msFVE-VolumeGuid", "schemaIDGUID"]
 
 DATETIME_FIELDS = ["dSCorePropagationData", "whenChanged", "whenCreated"]
 
@@ -70,7 +70,7 @@ FILETIME_FIELDS = [
     "priorSetTime",
     "lastSetTime",
     "msKds-CreateTime",
-    "msKds-UseStartTime"
+    "msKds-UseStartTime",
 ]
 
 # fieldName: (isHistory, hasDES)
