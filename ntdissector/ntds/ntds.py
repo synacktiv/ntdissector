@@ -589,11 +589,17 @@ class NTDS:
         if "ms-Mcs-AdmPwd" in obj:
             obj["ms-Mcs-AdmPwd"] = unhexlify(obj["ms-Mcs-AdmPwd"]).decode()
         if "ms-Mcs-AdmPwdExpirationTime" in obj:
-            obj["ms-Mcs-AdmPwdExpirationTime"] = fileTimeToDateTime(obj["ms-Mcs-AdmPwdExpirationTime"])
+            try:
+                obj["ms-Mcs-AdmPwdExpirationTime"] = fileTimeToDateTime(obj["ms-Mcs-AdmPwdExpirationTime"])
+            except:
+                pass
 
     def __formatLAPSv2(self, obj: dict) -> None:
         if "msLAPS-PasswordExpirationTime" in obj:
-            obj["msLAPS-PasswordExpirationTime"] = fileTimeToDateTime(obj["msLAPS-PasswordExpirationTime"])
+            try:
+                obj["msLAPS-PasswordExpirationTime"] = fileTimeToDateTime(obj["msLAPS-PasswordExpirationTime"])
+            except:
+                pass
         for fn in [
             "msLAPS-EncryptedPassword",
             "msLAPS-EncryptedPasswordHistory",
