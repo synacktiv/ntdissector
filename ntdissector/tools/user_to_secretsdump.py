@@ -33,6 +33,7 @@ def main():
                     i = 0
                     for h in j["ntPwdHistory"]:
                         lm = j["lmPwdHistory"][i] if i < len(j["lmPwdHistory"]) else "aad3b435b51404eeaad3b435b51404ee"
+                        lm = lm if "dBCSPwd" in j else "aad3b435b51404eeaad3b435b51404ee"
                         print("%s_history%d:%s:%s:%s" % (username, i, rid, lm, h))
                         i += 1
 
