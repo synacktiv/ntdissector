@@ -1,4 +1,4 @@
-dissect.esedb>=3.9dev1
+dissect.esedb>=3.9
 impacket==0.10.0
 pycryptodome>=3.17
 pycryptodomex>=3.17
