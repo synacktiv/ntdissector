@@ -167,23 +167,26 @@ class NTDS:
             except TypeError:
                 logging.error("Couldn't load bootkey, should be a hex string")
         elif systemHive is not None:
-            self.bootKey = b""
-            tmpKey = b""
-            winreg = winregistry.Registry(systemHive)
-            currentControlSet = "ControlSet%03d" % (winreg.getValue("\\Select\\Current")[1])
-            for key in ["JD", "Skew1", "GBG", "Data"]:
-                ans = winreg.getClass("\\%s\\Control\\Lsa\\%s" % (currentControlSet, key))
-                digit = ans[:16].decode("utf-16le")
-                tmpKey = tmpKey + b(digit)
+            if Path(systemHive).is_file():
+                self.bootKey = b""
+                tmpKey = b""
+                winreg = winregistry.Registry(systemHive)
+                currentControlSet = "ControlSet%03d" % (winreg.getValue("\\Select\\Current")[1])
+                for key in ["JD", "Skew1", "GBG", "Data"]:
+                    ans = winreg.getClass("\\%s\\Control\\Lsa\\%s" % (currentControlSet, key))
+                    digit = ans[:16].decode("utf-16le")
+                    tmpKey = tmpKey + b(digit)
 
-            transforms = [8, 5, 4, 2, 11, 9, 13, 3, 0, 6, 1, 12, 14, 10, 15, 7]
+                transforms = [8, 5, 4, 2, 11, 9, 13, 3, 0, 6, 1, 12, 14, 10, 15, 7]
 
-            tmpKey = unhexlify(tmpKey)
+                tmpKey = unhexlify(tmpKey)
 
-            for i in range(len(tmpKey)):
-                self.bootKey += tmpKey[transforms[i] : transforms[i] + 1]
+                for i in range(len(tmpKey)):
+                    self.bootKey += tmpKey[transforms[i] : transforms[i] + 1]
 
-            logging.debug("Retrieved system bootKey from hive: %s" % hexlify(self.bootKey).decode("utf-8"))
+                logging.debug("Retrieved system bootKey from hive: %s" % hexlify(self.bootKey).decode("utf-8"))
+            else:
+                logging.error(f"Couldn't load bootkey, file not found : {systemHive}")
 
         elif self.__isADAM:
             if self.__rootPekList is None or self.__schemaPekList is None:
@@ -512,8 +515,11 @@ class NTDS:
         rid = 0 if not "objectSid" in obj else obj["objectSid"].split("-")[-1]
         for field, (isHistory, hasDES) in ENCRYPTED_FIELDS.items():
             if field in obj:
-                res = self.pekList.decryptSecret(unhexlify(obj[field]), rid, isHistory, hasDES, self.__isADAM)
-                obj[field] = res[:32] if field in ["unicodePwd"] else res
+                try:
+                    res = self.pekList.decryptSecret(unhexlify(obj[field]), rid, isHistory, hasDES, self.__isADAM)
+                    obj[field] = res[:32] if field in ["unicodePwd"] else res
+                except Exception as e:
+                    logging.error("__formatSecrets : %s" % e)
 
     def __formatSID(self, obj: dict) -> None:
         if "objectSid" in obj:
@@ -679,7 +685,7 @@ class NTDS:
     def __dumpObjectWorker(self, workersQ: mp.Queue, workerLock: mp.Lock) -> None:
         wid = mp.current_process().name.split("-")[1]
         results = dict()
-        logging.debug("Worker-%s started " % wid)
+        logging.debug(f"Worker-{wid} started ")
         self.__db = EseDB(open(self.__nfo[0], "rb"))
         self.__datatable = self.__db.table("datatable")
         self.__linktable = self.__db.table("link_table")
@@ -698,7 +704,10 @@ class NTDS:
                 record = Record(table=self.__datatable, node=node)
                 res_obj = self.__serializeRecord(record)
                 # logging.debug(res_obj)
-                self.__formatFields(res_obj)
+                try:
+                    self.__formatFields(res_obj)
+                except Exception as e:
+                    logging.debug(f"Worker-{wid} __formatFields error : {e} ")
                 if pickled_record["cName"] not in results:
                     results[pickled_record["cName"]] = list()
                 results[pickled_record["cName"]].append(res_obj)
