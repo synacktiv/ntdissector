@@ -26,6 +26,7 @@ from binascii import hexlify, unhexlify
 from base64 import b64encode
 from ntdissector.utils.crypto import PEK_LIST, format_asn1_to_pem
 from ntdissector.utils.sddl import parse_ntSecurityDescriptor
+from ntdissector.utils.trusts import TRUST_AUTH_INFO
 from ntdissector.utils import NTDS_SID, GUID, fileTimeToDateTime, formatDateTime, json_dumps
 from ntdissector.utils.constants import (
     SAM_ACCOUNT_TYPE,
@@ -636,6 +637,19 @@ class NTDS:
                     "!ERROR!",  # re-run with dryRun opt to rebuild cache
                 )
 
+    def __formatTrust(self, obj: dict) -> None:
+        if "trustedDomain" in obj["objectClass"]:
+            if "securityIdentifier" in obj:
+                try:
+                    obj["securityIdentifier"] = NTDS_SID(unhexlify(obj["securityIdentifier"])).formatCanonical()
+                except:
+                    pass
+            for attr in ["trustAuthIncoming", "trustAuthOutgoing"]:
+                try:
+                    obj[attr] = TRUST_AUTH_INFO(obj[attr])._toJson()
+                except Exception as e:
+                    pass
+
     def __formatFields(self, obj: dict) -> None:
         self.__formatSID(obj)
         self.__formatSecrets(obj)
@@ -654,6 +668,7 @@ class NTDS:
         self.__formatLAPSv2(obj)
         self.__formatSecurityDescriptor(obj)
         self.__formatAllowedToActOnBehalfOfOtherIdentity(obj)
+        self.__formatTrust(obj)
 
     def __getObjectClass(self, record: Record) -> str or list:
         try:
