@@ -20,7 +20,8 @@ def main():
                 if "userPrincipalName" in j.keys():
                     username = "%s\\%s" % (j.get("userPrincipalName").split("@")[-1], j.get("sAMAccountName"))
                 else:
-                    username = j.get("sAMAccountName")
+                    username = j.get("sAMAccountName", None)
+                    username = username if username is not None else j.get("name") # for ADAM NTDS
                 if "cn" in j.keys() and "unicodePwd" in j.keys():
                     if "pwdLastSet" in j.keys():
                         if "ACCOUNTDISABLE" not in j.get('userAccountControl', []):
