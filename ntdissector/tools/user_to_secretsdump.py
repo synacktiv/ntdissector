@@ -23,7 +23,7 @@ def main():
                     username = j.get("sAMAccountName")
                 if "cn" in j.keys() and "unicodePwd" in j.keys():
                     if "pwdLastSet" in j.keys():
-                        if "ACCOUNTDISABLE" not in j['userAccountControl']:
+                        if "ACCOUNTDISABLE" not in j.get('userAccountControl', []):
                             status = "Enabled"
                         else:
                             status = "Disabled"
