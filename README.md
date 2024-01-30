@@ -5,6 +5,10 @@ Records are dumped in JSON format and can be filtered by object class.
 
 By providing the SYSTEM hive or the right bootkey in hex format, encryption layers will be removed from the right columns.
 
+More info in the following blogposts :
+- [Introducing ntdissector, a swiss army knife for your NTDS.dit files](https://www.synacktiv.com/publications/introducing-ntdissector-a-swiss-army-knife-for-your-ntdsdit-files)
+- [Using ntdissector to extract secrets from ADAM NTDS files](https://www.synacktiv.com/publications/using-ntdissector-to-extract-secrets-from-adam-ntds-files)
+
 ## Installation
 ```
 $ python3 -m pip install [--user] ./ntdissector
