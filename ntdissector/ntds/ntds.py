@@ -111,8 +111,8 @@ class NTDS:
             self.__dt_records_count = self.__nfo[2]
 
         if self.__dryRun or not self.__cacheLoaded:
-            self.__buildSchemas()
             self.__getBootKey(options.bootKey, options.system)
+            self.__buildSchemas()
             if self.__persistCache:
                 self.__saveCache()
         else:
@@ -169,23 +169,27 @@ class NTDS:
                 logging.error("Couldn't load bootkey, should be a hex string")
         elif systemHive is not None:
             if Path(systemHive).is_file():
-                self.bootKey = b""
-                tmpKey = b""
-                winreg = winregistry.Registry(systemHive)
-                currentControlSet = "ControlSet%03d" % (winreg.getValue("\\Select\\Current")[1])
-                for key in ["JD", "Skew1", "GBG", "Data"]:
-                    ans = winreg.getClass("\\%s\\Control\\Lsa\\%s" % (currentControlSet, key))
-                    digit = ans[:16].decode("utf-16le")
-                    tmpKey = tmpKey + b(digit)
+                try:
+                    winreg = winregistry.Registry(systemHive)
+                except: 
+                    logging.error(f"Couldn't parse the SYSTEM hive file, wrong file ? {systemHive}")
+                else:
+                    self.bootKey = b""
+                    tmpKey = b""
+                    currentControlSet = "ControlSet%03d" % (winreg.getValue("\\Select\\Current")[1])
+                    for key in ["JD", "Skew1", "GBG", "Data"]:
+                        ans = winreg.getClass("\\%s\\Control\\Lsa\\%s" % (currentControlSet, key))
+                        digit = ans[:16].decode("utf-16le")
+                        tmpKey = tmpKey + b(digit)
 
-                transforms = [8, 5, 4, 2, 11, 9, 13, 3, 0, 6, 1, 12, 14, 10, 15, 7]
+                    transforms = [8, 5, 4, 2, 11, 9, 13, 3, 0, 6, 1, 12, 14, 10, 15, 7]
 
-                tmpKey = unhexlify(tmpKey)
+                    tmpKey = unhexlify(tmpKey)
 
-                for i in range(len(tmpKey)):
-                    self.bootKey += tmpKey[transforms[i] : transforms[i] + 1]
+                    for i in range(len(tmpKey)):
+                        self.bootKey += tmpKey[transforms[i] : transforms[i] + 1]
 
-                logging.debug("Retrieved system bootKey from hive: %s" % hexlify(self.bootKey).decode("utf-8"))
+                    logging.debug("Retrieved system bootKey from hive: %s" % hexlify(self.bootKey).decode("utf-8"))
             else:
                 logging.error(f"Couldn't load bootkey, file not found : {systemHive}")
 
@@ -267,12 +271,12 @@ class NTDS:
             _b_DNT = str(record.get("backlink_DNT"))
             if _b_DNT not in self.links["to"]:
                 self.links["to"][_b_DNT] = []
-            self.links["to"][_b_DNT].append((record.get("link_DNT"), record.get("link_base"), record.get("link_data")))
+            self.links["to"][_b_DNT].append((record.get("link_DNT"), record.get("link_base"), record.get("link_deltime"), record.get("link_deactivetime"), record.get("link_data")))
 
             _l_DNT = str(record.get("link_DNT"))
             if _l_DNT not in self.links["from"]:
                 self.links["from"][_l_DNT] = []
-            self.links["from"][_l_DNT].append((record.get("backlink_DNT"), record.get("link_base"), record.get("link_data")))
+            self.links["from"][_l_DNT].append((record.get("backlink_DNT"), record.get("link_base"), record.get("link_deltime"), record.get("link_deactivetime"), record.get("link_data")))
 
         logging.debug("Parsing the datatable")
         for record in self.__datatable.records():
@@ -350,9 +354,8 @@ class NTDS:
                         ["Common-Name", "cn"],
                     )[self.ldap_naming]
 
-                    if self.__skipDel and "\nDEL:" not in str(record.get(NAME_TO_INTERNAL["RDN"])):
-                        tdn = f"{rdn_type.upper()}={str(record.get(NAME_TO_INTERNAL['RDN']))}"
-                        self.dnt_to_dn[str(record.get("DNT_col"))] = ",".join([tdn] if parent_dn is None else [tdn, parent_dn])
+                    tdn = f"{rdn_type.upper()}={str(record.get(NAME_TO_INTERNAL['RDN']))}"
+                    self.dnt_to_dn[str(record.get("DNT_col"))] = ",".join([tdn] if parent_dn is None else [tdn, parent_dn])
 
         remaining = list()
         __buildDNs(self.__datatable.records(), remaining)
@@ -543,7 +546,7 @@ class NTDS:
     def __formatLinks(self, obj: dict) -> None:
         dn = obj.get("distinguishedName")
         if dn is not None:
-            for (_dn, _link_base, _link_data), _link_direction in [(x, 1) for x in self.links["to"].get(str(dn), ())] + [
+            for (_dn, _link_base, _link_deltime, _link_deactivetime, _link_data), _link_direction in [(x, 1) for x in self.links["to"].get(str(dn), ())] + [
                 (y, 0) for y in self.links["from"].get(str(dn), ())
             ]:
                 link_attribute_name = self.attributeSchema["links"].get(
@@ -552,7 +555,15 @@ class NTDS:
                 if link_attribute_name not in obj:
                     obj[link_attribute_name] = list()
                 if _link_data is None:
-                    obj[link_attribute_name].append(self.dnt_to_dn.get(str(_dn), f"UNKNOWN CN FOR DN {_dn}"))
+                    resolved_dn = self.dnt_to_dn.get(str(_dn), f"UNKNOWN CN FOR DN {_dn}")
+                    if (_link_deltime is not None or _link_deltime is not None) and self.__skipDel:
+                        continue
+                    else:
+                        if _link_deltime is not None:
+                            resolved_dn = f"__DELETED-{_link_deltime}__{resolved_dn}"
+                        if _link_deactivetime is not None :
+                            resolved_dn = f"__DEACTIVE-{_link_deactivetime}__{resolved_dn}"
+                    obj[link_attribute_name].append(resolved_dn)
                 else:
                     obj[link_attribute_name].append(_link_data)
 
