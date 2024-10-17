@@ -22,6 +22,8 @@ from os import path
 from json import loads
 from tqdm import tqdm
 import multiprocessing as mp
+import threading
+import queue
 from binascii import hexlify, unhexlify
 from base64 import b64encode
 from ntdissector.utils.crypto import PEK_LIST, format_asn1_to_pem
@@ -708,7 +710,7 @@ class NTDS:
         return name
 
     # multiprocessing with a queue
-    def __dumpObjectWorker(self, workersQ: mp.Queue, workerLock: mp.Lock) -> None:
+    def __dumpObjectWorker(self, workersQ: queue.Queue, workerLock: threading.Lock) -> None:
         wid = mp.current_process().name.split("-")[1]
         results = dict()
         logging.debug(f"Worker-{wid} started ")
@@ -759,8 +761,9 @@ class NTDS:
         def __reduce(record):
             return {"page_num": record._node.tag.page.num, "page_buf": bytes(record._node.tag.page.buf), "node_num": record._node.num}
 
-        workersQ = mp.Queue()
-        workerLock = mp.Lock()
+        mpManager = mp.Manager()
+        workersQ = mpManager.Queue()
+        workerLock = mpManager.Lock()
         pool = mp.get_context("fork").Pool(self.workers, self.__dumpObjectWorker, (workersQ, workerLock))
         logging.info("Filtering records with this list of object classes :  %s" % classList)
         if self.__skipDel:
@@ -813,16 +816,13 @@ class NTDS:
             workersQ.put(None)
 
         try:
-            workersQ.close()
-            workersQ.join_thread()
-            logging.debug("Worker queue closed successfully")
             pool.close()
             pool.join()
             logging.debug("Process pool closed successfully")
         except BrokenPipeError as e:
-            logging.error("BrokenPipeError while closing pool - %e" % e)
+            logging.error("BrokenPipeError while closing pool - %s" % e)
         except Exception as e:
-            logging.error("Error while closing pool - %e" % e)
+            logging.error("Error while closing pool - %s" % e)
             raise e
 
     def getClasses(self) -> list:
