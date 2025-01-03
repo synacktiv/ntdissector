@@ -48,7 +48,7 @@ class NTDS:
 
     def __init__(self, ntdsFile, options=None) -> None:
         self.__dt_records_count = -1
-        self.__nfo = [ntdsFile, md5(b(ntdsFile)).hexdigest(), self.__dt_records_count]
+        self.__nfo = [ntdsFile, md5(open(ntdsFile, "rb").read()).hexdigest(), self.__dt_records_count]
         self.__db = EseDB(open(ntdsFile, "rb"))
         self.__datatable = self.__db.table("datatable")
         self.__linktable = self.__db.table("link_table")
