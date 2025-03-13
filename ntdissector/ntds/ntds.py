@@ -111,8 +111,8 @@ class NTDS:
             self.__dt_records_count = self.__nfo[2]
 
         if self.__dryRun or not self.__cacheLoaded:
-            self.__getBootKey(options.bootKey, options.system)
             self.__buildSchemas()
+            self.__getBootKey(options.bootKey, options.system)
             if self.__persistCache:
                 self.__saveCache()
         else:
@@ -200,7 +200,6 @@ class NTDS:
             else:
                 root_permutation = [2, 4, 25, 9, 7, 27, 5, 11]
                 schema_permutation = [37, 2, 17, 36, 20, 11, 22, 7]
-                print(self.__schemaPekList[2])
                 self.bootKey = b"".join(
                     [self.__rootPekList[i].to_bytes(1, "little") for i in root_permutation]
                     + [self.__schemaPekList[i].to_bytes(1, "little") for i in schema_permutation]
