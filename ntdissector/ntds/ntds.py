@@ -214,7 +214,7 @@ class NTDS:
     def __loadCache(self) -> None:
         for k, p in self.__cacheFiles.items():
             try:
-                self.__setattr__(f"_{self.__class__.__name__}{k}" if k.startswith("__") else k, loads(open(p, "r").read()))
+                self.__setattr__(f"_{self.__class__.__name__}{k}" if k.startswith("__") else k, loads(open(p, "r", encoding='utf-8').read()))
                 logging.debug("Loaded cache file %s into %s" % (p, k))
             except Exception as e:
                 logging.error("Couldn't load cache file %s -> %s" % (p, e))
@@ -226,7 +226,7 @@ class NTDS:
         Path(self.__cachedir).mkdir(parents=True, exist_ok=True)
         for k, v in self.__cacheFiles.items():
             logging.debug("Saving %s into cache file %s" % (k, v))
-            open(v, "w").write(json_dumps(self.__getattribute__(f"_{self.__class__.__name__}{k}" if k.startswith("__") else k)))
+            open(v, "w", encoding='utf-8').write(json_dumps(self.__getattribute__(f"_{self.__class__.__name__}{k}" if k.startswith("__") else k)))
 
     def __buildSchemas(self) -> None:
         if self.__cacheLoaded and len(self.objectClassSchema["resolve"]) and len(self.attributeSchema["resolve"]) and self.rawEncPekList is not None:
@@ -724,7 +724,7 @@ class NTDS:
                 with workerLock:
                     logging.debug("Lock acquired by Worker-%s, dumping results" % wid)
                     for cName, res in results.items():
-                        with open(f"{self.__outdir}/{cName}.json", "a") as outFile:
+                        with open(f"{self.__outdir}/{cName}.json", "a", encoding='utf-8') as outFile:
                             outFile.write("\n".join([json_dumps(r) for r in res]))
                             outFile.write("\n")
                 break
@@ -782,7 +782,7 @@ class NTDS:
                     if cName not in stats:
                         stats[cName] = 0
                         # create empty file, zeroes out any existing output
-                        open(f"{self.__outdir}/{cName}.json", "w").close()
+                        open(f"{self.__outdir}/{cName}.json", "w", encoding='utf-8').close()
                     a = __reduce(record)
                     a["cName"] = cName
                     workersQ.put(a, block=True)

@@ -9,7 +9,7 @@ def main():
     args = parser.parse_args()
 
     for fl in args.files:
-        with open(fl, 'r') as f:
+        with open(fl, 'r', encoding='utf-8') as f:
             for l in f:
                 try:
                     j = json.loads(l)
