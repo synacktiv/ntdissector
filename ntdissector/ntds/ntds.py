@@ -650,6 +650,9 @@ class NTDS:
 
     def __formatTrust(self, obj: dict) -> None:
         if "trustedDomain" in obj["objectClass"]:
+            domain = obj["distinguishedName"].split("DC=", 1)[-1].replace("DC=", "").replace(",", ".")
+            trust_partner = obj["trustPartner"]
+
             if "securityIdentifier" in obj:
                 try:
                     obj["securityIdentifier"] = NTDS_SID(unhexlify(obj["securityIdentifier"])).formatCanonical()
@@ -657,7 +660,7 @@ class NTDS:
                     pass
             for attr in ["trustAuthIncoming", "trustAuthOutgoing"]:
                 try:
-                    obj[attr] = TRUST_AUTH_INFO(obj[attr])._toJson()
+                    obj[attr] = TRUST_AUTH_INFO(obj[attr], domain, trust_partner, attr)._toJson()
                 except Exception as e:
                     pass
 
