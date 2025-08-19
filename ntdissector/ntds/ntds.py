@@ -1,4 +1,6 @@
 import logging
+
+from dissect.esedb import KeyNotFoundError
 from dissect.esedb.esedb import EseDB
 from dissect.esedb.record import Record
 from dissect.esedb.page import Page
@@ -268,15 +270,27 @@ class NTDS:
 
         logging.debug("Parsing the link_table")
         for record in self.__linktable.records():
+            try:
+                link_data = record.get("link_data")
+            except KeyNotFoundError:
+                logging.warning("Cannot find key for link_table record, ignoring record")
+                logging.debug(record)
+                continue
+
+            try:
+                deactivetime = record.get("link_deactivetime")
+            except KeyError:
+                deactivetime = None
+
             _b_DNT = str(record.get("backlink_DNT"))
             if _b_DNT not in self.links["to"]:
                 self.links["to"][_b_DNT] = []
-            self.links["to"][_b_DNT].append((record.get("link_DNT"), record.get("link_base"), record.get("link_deltime"), record.get("link_deactivetime"), record.get("link_data")))
+            self.links["to"][_b_DNT].append((record.get("link_DNT"), record.get("link_base"), record.get("link_deltime"), deactivetime, link_data))
 
             _l_DNT = str(record.get("link_DNT"))
             if _l_DNT not in self.links["from"]:
                 self.links["from"][_l_DNT] = []
-            self.links["from"][_l_DNT].append((record.get("backlink_DNT"), record.get("link_base"), record.get("link_deltime"), record.get("link_deactivetime"), record.get("link_data")))
+            self.links["from"][_l_DNT].append((record.get("backlink_DNT"), record.get("link_base"), record.get("link_deltime"), deactivetime, link_data))
 
         logging.debug("Parsing the datatable")
         for record in self.__datatable.records():
