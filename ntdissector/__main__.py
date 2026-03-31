@@ -43,6 +43,7 @@ def main():
     mgroup.add_argument("-w", "-workers", dest="workers", action="store", type=int, default=5, help="Number of workers (default: 5)")
     mgroup.add_argument("-nocache", dest="saveCache", action="store_false", default=True, help="Disable cache")
     mgroup.add_argument("-dryRun", action="store_true", help="Launch in dry run mode, ignores cache files")
+    mgroup.add_argument("-raw", action="store_true", help="Add raw values on some attributes (the name is prefixed by 'RAW_')")
 
     parser.epilog = dedent(
         f"""

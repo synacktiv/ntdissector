@@ -35,6 +35,21 @@ def formatDateTime(t) -> str:
         )
 
 
+def formatDateTimeToLdapGeneralizedTime(t) -> str:
+    if isinstance(t, list):
+        return list(
+            datetime.fromtimestamp(x - 11644473600, tz=tz.gettz("UTC"))
+           .strftime("%Y%m%d%H%M%S.0Z")
+           for x in t
+        )
+    else:
+        return (
+            datetime.fromtimestamp(t - 11644473600, tz=tz.gettz("UTC"))
+           .strftime("%Y%m%d%H%M%S.0Z")
+        )
+
+
+
 def fileTimeToDateTime(t):
     return formatDateTime((t / 10**7))
 

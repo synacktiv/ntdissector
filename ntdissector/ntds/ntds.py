@@ -15,7 +15,7 @@ from impacket import winregistry
 from pathlib import Path
 from six import b
 from hashlib import md5
-from textwrap import dedent
+from textwrap import dedent, wrap
 from os import path
 from json import loads
 from tqdm import tqdm
@@ -25,7 +25,14 @@ from base64 import b64encode
 from ntdissector.utils.crypto import PEK_LIST, format_asn1_to_pem
 from ntdissector.utils.sddl import parse_ntSecurityDescriptor
 from ntdissector.utils.trusts import TRUST_AUTH_INFO
-from ntdissector.utils import NTDS_SID, GUID, fileTimeToDateTime, formatDateTime, json_dumps
+from ntdissector.utils import (
+    NTDS_SID,
+    GUID,
+    fileTimeToDateTime,
+    formatDateTime,
+    formatDateTimeToLdapGeneralizedTime,
+    json_dumps,
+)
 from ntdissector.utils.constants import (
     SAM_ACCOUNT_TYPE,
     USER_ACCOUNT_CONTROL,
@@ -85,6 +92,20 @@ class NTDS:
         self.__dryRun = options.dryRun  # defaults to false
         self.__isADAM = False  # AD LDS format
         self.__skipDel = options.keepDel == False
+
+        self.__rawAttrs = options.raw
+        self.__rawCopy = [
+            "supplementalCredentials",
+            "msDS-AllowedToActOnBehalfOfOtherIdentity",
+            "ms-Mcs-AdmPwdExpirationTime",
+            "msLAPS-PasswordExpirationTime",
+            "trustAuthIncoming",
+            "trustAuthOutgoing",
+        ]
+        self.__rawCopy += FILETIME_FIELDS
+        self.__rawCopy += UUID_FIELDS
+        self.__rawCopyInt = ["sAMAccountType", "userAccountControl"]
+        self.__rawCopySID = ["objectSid", "securityIdentifier"]
 
         self.workers = options.workers
 
@@ -670,6 +691,9 @@ class NTDS:
                     pass
 
     def __formatFields(self, obj: dict) -> None:
+        self.__formatSecurityDescriptor(obj)
+        if self.__rawAttrs:
+            self.__storeRawAttributes(obj)
         self.__formatSID(obj)
         self.__formatSecrets(obj)
         self.__formatSupplementalCredentialsInfo(obj)
@@ -685,9 +709,27 @@ class NTDS:
         self.__formatCertificates(obj)
         self.__formatLAPS(obj)
         self.__formatLAPSv2(obj)
-        self.__formatSecurityDescriptor(obj)
         self.__formatAllowedToActOnBehalfOfOtherIdentity(obj)
         self.__formatTrust(obj)
+
+    def __storeRawAttributes(self, obj: dict):
+        for field in self.__rawCopy:
+            if field in obj:
+                obj['RAW_' + field] = obj[field]
+
+        for field in self.__rawCopyInt:
+            if field in obj:
+                obj['RAW_' + field] = int(obj[field])
+
+        for field in self.__rawCopySID:
+            if field in obj:
+                # last part is B-E
+                hex_sid = obj[field][:-8] + ''.join(reversed(wrap(obj[field][-8:], 2)))
+                obj["RAW_" + field] = hex_sid
+
+        for field in DATETIME_FIELDS:
+            if field in obj:
+                obj['RAW_' + field] = formatDateTimeToLdapGeneralizedTime(obj[field])
 
     def __getObjectClass(self, record: Record) -> str or list:
         try:
